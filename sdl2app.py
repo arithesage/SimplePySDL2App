@@ -48,6 +48,9 @@ from utils import file_exists, make_path
 from utils import print_va
 from utils import str_empty
 
+from loaded_graphic import LoadedGraphic
+
+
 
 
 class SDL2App:
@@ -127,6 +130,17 @@ class SDL2App:
         SDL_ShowWindow (self.__window)
 
 
+    def load_image (image_path: str) -> LoadedGraphic:
+        if file_exists (image_path):            
+            image_data = IMG_Load (image_path)
+            
+            if (image_data != None):
+                loaded_graphic = LoadedGraphic (image_path, image_data)
+                return loaded_graphic
+            
+        return None
+
+
     def on_init (self) -> None:
         pass
 
@@ -192,8 +206,6 @@ class SDL2App:
 
     def __shutdown (self) -> None:
         self.on_quit ()
-
-        self.__asset_store.destroy ()
 
         SDL_DestroyRenderer (self.__renderer)
         SDL_DestroyWindow (self.__window)
