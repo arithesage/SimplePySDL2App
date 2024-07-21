@@ -1,4 +1,5 @@
 from ctypes import byref
+from typing import Tuple
 
 # SDL2 Classes
 from sdl2 import SDL_Color as Color
@@ -10,13 +11,13 @@ from sdl2 import SDL_Renderer as Renderer
 from sdl2 import SDL_CreateRenderer, SDL_CreateTextureFromSurface,\
                  SDL_CreateWindow, SDL_DestroyRenderer, SDL_DestroyTexture, \
                  SDL_DestroyWindow, SDL_GetError, SDL_ShowWindow, SDL_Init, \
-                 SDL_PollEvent, SDL_Quit, SDL_Rect, SDL_RenderClear, \
+                 SDL_PollEvent, SDL_Quit, SDL_Rect, SDL_FRect, SDL_RenderClear, \
                  SDL_RenderPresent, SDL_Surface, SDL_Texture
 
 
 # SDL2 drawing functions
-from sdl2 import SDL_RenderCopy, SDL_RenderDrawLine, SDL_RenderDrawLineF, \
-                 SDL_RenderDrawRect, SDL_SetRenderDrawColor
+from sdl2 import SDL_RenderCopy, SDL_RenderCopyF, SDL_RenderDrawLine, \
+                 SDL_RenderDrawLineF, SDL_RenderDrawRect, SDL_SetRenderDrawColor
 
 # SDL2 constants
 # Systems
@@ -48,7 +49,8 @@ from utils import file_exists, make_path
 from utils import print_va
 from utils import str_empty
 
-from loaded_graphic import LoadedGraphic
+from entity2d import Entity2D
+from graphic import Graphic
 
 
 
@@ -97,7 +99,8 @@ class SDL2App:
         """
 
         self.__resources = resources_path
-        self.__running = False        
+        self.__running = False
+        self.__texture_cache = {}
 
         if not self.__sdl_init (system_flags):
             print ("ERROR: Failed initializing SDL.")
@@ -112,6 +115,37 @@ class SDL2App:
                               renderer_flags)
         
         self.on_init ()
+
+
+    def __cache_texture (self,
+                         graphic: SDL_Surface,
+                         graphic_path: str) -> bool:
+        """
+        Caches a texture if it wasn't already cached.
+
+        'Caching' really means 'uploading to GPU'.
+
+        The idea is, when a sprite is instanced,
+        check if it has been cached and only upload texture if
+        it wasn't uploaded before.
+        """
+
+        if self.__has_cached_texture (graphic_path):
+            print_va ("Already cached texture for '$[0]'.", graphic_path)
+            return True
+                
+        texture = SDL_CreateTextureFromSurface (self.__renderer, graphic)
+        
+        if (texture == None):
+            print_va ("ERROR: Failed caching texture for '$[0]'.",
+                        graphic_path)
+            
+            return False
+        
+        else:
+            self.__texture_cache[graphic_path] = texture
+            print_va ("Cached texture for '$[0]'.", graphic_path)
+            return True    
 
 
     def __create_window (self, title: str, x: int, y: int, width: int,\
@@ -130,12 +164,18 @@ class SDL2App:
         SDL_ShowWindow (self.__window)
 
 
-    def load_image (image_path: str) -> LoadedGraphic:
+    def __has_cached_texture (self, image_path: str) -> bool:
+        return image_path in self.__texture_cache.keys()
+
+
+    def load_graphic (self, image_path: str) -> Graphic:
+        image_path = make_path (self.__resources, image_path)
+
         if file_exists (image_path):            
-            image_data = IMG_Load (image_path)
+            image_data = IMG_Load (image_path.encode())
             
             if (image_data != None):
-                loaded_graphic = LoadedGraphic (image_path, image_data)
+                loaded_graphic = Graphic (image_path, image_data)
                 return loaded_graphic
             
         return None
@@ -216,6 +256,53 @@ class SDL2App:
 
     def update (self) -> None:
         pass
+
+
+    def render_entity2d (self, 
+                         entity: Entity2D,
+                         width: int = None,
+                         height: int = None) -> None:
+        """
+        Call for rendering 2D entities.
+
+        Width and height are used for rendering only a portion
+        of the entity.
+        """
+        if (entity != None):
+            if not entity.sprite().is_cached():
+                img_path = entity.sprite().graphic().path()
+                surface = entity.sprite().graphic().graphic_data()                                        
+
+                if self.__cache_texture (surface, img_path):
+                    entity.sprite().__cached__()
+
+            if entity.sprite().is_cached():                
+                entity_x = entity.position().x()
+                entity_y = entity.position().y()
+                texture = self.__texture_cache[entity.sprite().graphic().path()]
+                sprite_width = entity.sprite().width()
+                sprite_height = entity.sprite().height()
+
+                if (width == None) or (height == None):
+                    src_rect = SDL_Rect (int (entity_x),
+                                         int (entity_y),
+                                         int (sprite_width),
+                                         int (sprite_height))
+                else:
+                    src_rect = SDL_FRect (entity_x,
+                                          entity_y,
+                                          width,
+                                          height)
+                    
+                dest_rect = SDL_FRect (entity_x,
+                                       entity_y,
+                                       sprite_width,
+                                       sprite_height)
+                
+                SDL_RenderCopyF (self.__renderer,
+                                 texture,
+                                 src_rect,
+                                 dest_rect)
 
 
     def render (self) -> None:

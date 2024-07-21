@@ -2,12 +2,14 @@
 
 import sys
 
-from sdl2app import SDL2App
-
+from sdl2app import *
+from entity2d import Entity2D
 
 
 
 class Test (SDL2App):
+    sprite = None
+
     def __init__(self,
                  resources_path: str = SDL2App.DEFAULTS.RESOURCES_PATH, 
                  app_name: str = SDL2App.DEFAULTS.WINDOW_TITLE,
@@ -23,9 +25,20 @@ class Test (SDL2App):
                          window_flags, 
                          renderer_flags)
         
+        self.graphic = self.load_graphic ("graphics/sprite.jpg")
+        self.sprite = None
+        
     def on_start(self):
-        super().on_start()
+        super().on_start()        
+        
+        if (self.graphic != None):
+            self.sprite = Entity2D (self.graphic)
 
+    def on_render(self) -> None:
+        super().on_render()    
+        self.render_entity2d (self.sprite)
+
+        
         
 
 if __name__ == "__main__":

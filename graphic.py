@@ -3,22 +3,22 @@ from sdl2 import SDL_Surface
 
 
 
-class LoadedGraphic:
+class Graphic:
     """
     Used for store the data of a loaded image
     """
-    def __init__(self, path: str, graphic: SDL_Surface) -> None:
+    def __init__(self, path: str, surface: SDL_Surface) -> None:
         self.__path = path
-        self.__graphic = graphic
-        self.__width = graphic[0].w
-        self.__height = graphic[0].h    
+        self.__graphic_data = surface
+        self.__width = surface[0].w
+        self.__height = surface[0].h    
     
 
-    def graphic (self) -> SDL_Surface:
+    def graphic_data (self) -> SDL_Surface:
         """
         Returns the image itself
         """
-        return self.__graphic
+        return self.__graphic_data
     
 
     def path (self) -> str:
